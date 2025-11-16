@@ -1,0 +1,11 @@
+pydrive2
+qrcode
+opencv-python
+mediapipe
+datetime
+pygame
+# time
+# random
+# os
+beepy
+djitellopy
