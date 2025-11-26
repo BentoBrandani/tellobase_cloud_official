@@ -3,6 +3,8 @@ from pydrive2.drive import GoogleDrive
 import qrcode
 import os
 from datetime import datetime
+import requests
+import json
 
 # Configurações básicas
 PASTA_FOTOS = "fotos"  # Nome da pasta que será enviada ao Drive
@@ -13,10 +15,6 @@ QR_CODE_FILE = "qrcode_album.png" # Nome da imagem QRcode que será gerada para 
 def autenticar_google_drive():
     # Autentica usando as informações do client_secres.json
     gauth = GoogleAuth()
-
-    # Para não ser necessário logar sempre em uma conta, as credenciais de uma conta
-    # com acesso ao projeto serão guardadas aqui (por quanto, guardam as credenciais ligadas
-    # à conta thiagomartins2710@gmail.com)
     gauth.LoadCredentialsFile("credentials.json")
 
     # Verifica se já há credenciais existentes
@@ -57,7 +55,7 @@ def enviar_fotos_individualmente(drive, pasta_drive_id):
 
     for arquivo in arquivos:
         caminho = os.path.join(PASTA_FOTOS, arquivo)
-        if os.path.isfile(caminho):
+        if os.path.isfile(caminho): 
             file_drive = drive.CreateFile({
                 'title': arquivo,
                 'parents': [{'id': pasta_drive_id}]
@@ -84,6 +82,35 @@ def gerar_qrcode(link):
     print(f"QR Code salvo como: {QR_CODE_FILE}")
 
 
+def fazer_post_api(api_url, bearer_token, slug_id, destination_url):    
+    headers = {
+        "Authorization": f"Bearer {bearer_token}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "slug": slug_id,
+        "destination": destination_url
+    }
+    
+    try:
+        response = requests.post(api_url, headers=headers, data=json.dumps(payload))
+        response.raise_for_status() 
+        
+        print("POST realizado com sucesso!")
+        print("Resposta:", response.json())
+        return response.json()
+        
+    except requests.exceptions.HTTPError as errh:
+        print(f"Erro HTTP: {errh}")
+        print("Corpo da resposta:", errh.response.text)
+    except requests.exceptions.ConnectionError as errc:
+        print(f"Erro de Conexão: {errc}")
+    except requests.exceptions.Timeout as errt:
+        print(f"Erro de Timeout: {errt}")
+    except requests.exceptions.RequestException as err:
+        print(f"Erro Inesperado: {err}")
+
 def main():
     # Autenticação
     drive = autenticar_google_drive()
@@ -105,10 +132,14 @@ def main():
     enviar_fotos_individualmente(drive, pasta_album_id)
 
     # Gerar link da pasta + QR Code
-    link = f"https://drive.google.com/drive/folders/{pasta_album_id}?usp=sharing"
-    print("Link do álbum:", link)
-    gerar_qrcode(link)
+    link_drive = f"https://drive.google.com/drive/folders/{pasta_album_id}?usp=sharing"
+    print("Link do álbum:", link_drive)
 
+    fazer_post_api("https://skyrats.com.br/api/create-redirect", "voadronezinho", timestamp, link_drive)    
+   
+    link = "https://skyrats.com.br/redirect/" + str(timestamp)
+    gerar_qrcode(link)
+    print(link)
 
 if __name__ == "__main__":
     main()
